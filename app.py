@@ -117,6 +117,42 @@ def pujar():
         fitxer.save(REGISTRE_PATH)
         return "Fitxer pujat correctament", 200
 
+@app.route('/registre')
+def veure_registre():
+    if not os.path.exists(REGISTRE_PATH):
+        return render_template('registre.html', registres=[])
+
+    with open(REGISTRE_PATH, 'r', encoding='utf-8') as f:
+        reader = csv.DictReader(f)
+        linies = list(reader)
+
+    registres = []
+    entrada = None
+
+    for fila in linies:
+        if fila["Tipus"] == "ENTRADA":
+            entrada = {
+                "data": fila["Data i hora"],
+                "of": fila["OF"],
+                "lloc": fila["Lloc de feina"],
+                "comentaris": fila["Comentaris"]
+            }
+        elif fila["Tipus"] == "SORTIDA" and entrada:
+            data_inici = datetime.strptime(entrada["data"], "%Y-%m-%d %H:%M:%S")
+            data_final = datetime.strptime(fila["Data i hora"], "%Y-%m-%d %H:%M:%S")
+            durada = round((data_final - data_inici).total_seconds() / 3600.0, 2)
+
+            registres.append({
+                "data_inici": entrada["data"],
+                "data_final": fila["Data i hora"],
+                "of": entrada["of"],
+                "lloc": entrada["lloc"],
+                "comentaris": entrada["comentaris"],
+                "hores": durada
+            })
+            entrada = None
+
+    return render_template('registre.html', registres=registres)
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
