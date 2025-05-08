@@ -3,6 +3,8 @@ from datetime import datetime
 from flask import send_file
 import csv
 import os
+from datetime import datetime
+import pytz
 
 app = Flask(__name__)
 REGISTRE_PATH = 'registre.csv'
@@ -27,7 +29,8 @@ def index():
 @app.route('/marcar', methods=['POST'])
 def marcar():
     data = request.json
-    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    zona = pytz.timezone("Europe/Madrid")
+    timestamp = datetime.now(zona).strftime('%Y-%m-%d %H:%M:%S')
     entrada_sortida = data.get('tipus')
     
     if entrada_sortida == "ENTRADA":
