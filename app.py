@@ -36,7 +36,7 @@ def calcular_import_mes(mes, any_actual):
     if not os.path.exists(REGISTRE_PATH):
         return 0.0
 
-    TARIFA_AIRA = 47.5
+    TARIFA_AIRA = 46.5
     TARIFA_REMOT = 37.5
 
     with open(REGISTRE_PATH, 'r', encoding='utf-8') as f:
