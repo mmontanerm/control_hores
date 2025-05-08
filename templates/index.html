@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+    <meta charset="UTF-8">
+    <title>Control d'Hores</title>
+    <script>
+        const estatInicial = "{{ status }}";
+    </script>
+    <script src="/static/script.js" defer></script>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding: 50px; }
+        button { font-size: 2em; padding: 20px; margin: 20px; border: none; border-radius: 10px; }
+        #marcar-btn.entrada { background-color: green; color: white; }
+        #marcar-btn.sortida { background-color: red; color: white; }
+        #formulari { display: none; margin-top: 20px; }
+        select, input, textarea { font-size: 1em; margin: 5px; width: 200px; }
+    </style>
+</head>
+<body>
+    <h1>Control d'Hores</h1>
+    <button id="marcar-btn"></button>
+
+    <div id="formulari">
+        <div>
+            <label>OF:</label><br>
+            <select id="of-select">
+                <option>Producció</option>
+                <option>Gladiator</option>
+                <option>3D</option>
+                <option>Esmolats</option>
+                <option>Trimmers</option>
+                <option value="altre">-- Altre --</option>
+            </select><br>
+            <input type="text" id="of-altre" placeholder="Escriu nova OF" style="display:none;">
+        </div>
+        <div>
+            <label>Lloc de feina:</label><br>
+            <select id="lloc-select">
+                <option>AIRA</option>
+                <option>Remot</option>
+                <option value="altre">-- Altre --</option>
+            </select><br>
+            <input type="text" id="lloc-altre" placeholder="Escriu nou lloc" style="display:none;">
+        </div>
+        <div>
+            <label>Comentaris:</label><br>
+            <textarea id="comentaris" rows="3" cols="30"></textarea>
+        </div>
+        <button id="confirmar-btn">MARCAR</button>
+    </div>
+</body>
+</html>

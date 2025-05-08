@@ -1,0 +1,7 @@
+Windows Registry Editor Version 5.00
+
+[HKEY_CLASSES_ROOT\Inventor.PartDocument\shell\Exportar_a_STEP\command]
+@="wscript \"C:\\Scripts\\Exportar_STEP.vbs\" \"%1\""
+
+[HKEY_CLASSES_ROOT\Inventor.AssemblyDocument\shell\Exportar_a_STEP\command]
+@="wscript \"C:\\Scripts\\Exportar_STEP.vbs\" \"%1\""

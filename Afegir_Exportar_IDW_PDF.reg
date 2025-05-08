@@ -1,0 +1,4 @@
+Windows Registry Editor Version 5.00
+
+[HKEY_CLASSES_ROOT\Inventor.DrawingDocument\shell\Exportar_a_PDF\command]
+@="wscript.exe \"C:\\Scripts\\Exportar_IDW_a_PDF.vbs\" \"%1\""

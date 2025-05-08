@@ -1,0 +1,4 @@
+Windows Registry Editor Version 5.00
+
+[HKEY_CLASSES_ROOT\Directory\shell\Enviar PDF per mail\command]
+@="powershell.exe -ExecutionPolicy Bypass -File \"C:\\Scripts\\Enviar_PDF_Manual.ps1\" \"%1\""
