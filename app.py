@@ -4,6 +4,7 @@ import csv
 import os
 import pytz
 from collections import deque
+from flask import request
 
 app = Flask(__name__)
 REGISTRE_PATH = 'registre.csv'
@@ -117,10 +118,15 @@ def pujar():
         fitxer.save(REGISTRE_PATH)
         return "Fitxer pujat correctament", 200
 
+from flask import request
+
 @app.route('/registre')
 def veure_registre():
     if not os.path.exists(REGISTRE_PATH):
-        return render_template('registre.html', registres=[])
+        return render_template('registre.html', registres=[], data_inici="", data_fi="")
+
+    data_inici = request.args.get("data_inici", "")
+    data_fi = request.args.get("data_fi", "")
 
     with open(REGISTRE_PATH, 'r', encoding='utf-8') as f:
         reader = csv.DictReader(f)
@@ -138,9 +144,19 @@ def veure_registre():
                 "comentaris": fila["Comentaris"]
             }
         elif fila["Tipus"] == "SORTIDA" and entrada:
-            data_inici = datetime.strptime(entrada["data"], "%Y-%m-%d %H:%M:%S")
-            data_final = datetime.strptime(fila["Data i hora"], "%Y-%m-%d %H:%M:%S")
-            durada = round((data_final - data_inici).total_seconds() / 3600.0, 2)
+            data_entrada = datetime.strptime(entrada["data"], "%Y-%m-%d %H:%M:%S")
+            data_sortida = datetime.strptime(fila["Data i hora"], "%Y-%m-%d %H:%M:%S")
+            durada = round((data_sortida - data_entrada).total_seconds() / 3600.0, 2)
+
+            # Filtrat per dates si cal
+            if data_inici:
+                dt_ini = datetime.strptime(data_inici, "%Y-%m-%d")
+                if data_sortida < dt_ini:
+                    continue
+            if data_fi:
+                dt_fi = datetime.strptime(data_fi, "%Y-%m-%d")
+                if data_sortida > dt_fi:
+                    continue
 
             registres.append({
                 "data_inici": entrada["data"],
@@ -152,7 +168,8 @@ def veure_registre():
             })
             entrada = None
 
-    return render_template('registre.html', registres=registres)
+    return render_template('registre.html', registres=registres, data_inici=data_inici, data_fi=data_fi)
+
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
