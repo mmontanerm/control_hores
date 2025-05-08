@@ -95,6 +95,9 @@ def marcar():
         if nou_fitxer:
             writer.writerow(["Data i hora", "Tipus", "OF", "Lloc de feina", "Comentaris"])
         writer.writerow(fila)
+        f.flush()                # <-- Afegeix això
+        os.fsync(f.fileno())     # <-- I això també
+
 
     guardar_status("ENTRADA" if entrada_sortida == "ENTRADA" else "SORTIDA")
     return jsonify({"ok": True})
