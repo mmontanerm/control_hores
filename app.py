@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, jsonify
 from datetime import datetime
+from flask import send_file
 import csv
 import os
 
@@ -44,7 +45,11 @@ def marcar():
     guardar_status("ENTRADA" if entrada_sortida == "ENTRADA" else "SORTIDA")
     return jsonify({"ok": True})
 
-import os
+@app.route('/descarregar')
+def descarregar_csv():
+    if os.path.exists(REGISTRE_PATH):
+        return send_file(REGISTRE_PATH, as_attachment=True)
+    return "No hi ha cap registre disponible", 404
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
