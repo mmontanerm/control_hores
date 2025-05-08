@@ -21,9 +21,24 @@ def guardar_status(estat):
     with open(STATUS_PATH, 'w') as f:
         f.write(estat)
 
+def carregar_ultim_estat():
+    if not os.path.exists(REGISTRE_PATH):
+        return "ENTRADA"  # Si no hi ha registre, comencem amb entrada
+
+    with open(REGISTRE_PATH, 'r', encoding='utf-8') as f:
+        linies = f.readlines()
+
+    if len(linies) < 2:
+        return "ENTRADA"
+
+    ultima_linia = linies[-1].strip().split(',')
+    ultim_tipus = ultima_linia[1].strip().upper()
+
+    return "SORTIDA" if ultim_tipus == "ENTRADA" else "ENTRADA"
+
 @app.route('/')
 def index():
-    status = carregar_status()
+    status = carregar_ultim_estat()
     return render_template('index.html', status=status)
 
 @app.route('/marcar', methods=['POST'])
