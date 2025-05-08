@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+    <meta charset="UTF-8">
+    <title>Registre d'Hores</title>
+    <style>
+        body { font-family: sans-serif; padding: 40px; }
+        table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+        th { background-color: #eee; }
+        h1 { text-align: center; }
+    </style>
+</head>
+<body>
+    <h1>Registre d'Hores Treballades</h1>
+    <table>
+        <tr>
+            <th>Entrada</th>
+            <th>Sortida</th>
+            <th>Durada (hores)</th>
+            <th>OF</th>
+            <th>Lloc</th>
+            <th>Comentaris</th>
+        </tr>
+        {% for r in registres %}
+        <tr>
+            <td>{{ r.data_inici }}</td>
+            <td>{{ r.data_final }}</td>
+            <td>{{ r.hores }}</td>
+            <td>{{ r.of }}</td>
+            <td>{{ r.lloc }}</td>
+            <td>{{ r.comentaris }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>
