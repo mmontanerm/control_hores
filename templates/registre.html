@@ -20,6 +20,15 @@
         </button>
     </a>
 
+    <form method="get" action="/registre">
+        <label>Data inici:</label>
+        <input type="date" name="data_inici" value="{{ data_inici }}">
+        <label>Data fi:</label>
+        <input type="date" name="data_fi" value="{{ data_fi }}">
+        <button type="submit">Filtrar</button>
+    </form>
+
+
     <table>
         <tr>
             <th>Entrada</th>
