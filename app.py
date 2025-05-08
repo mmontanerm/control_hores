@@ -104,6 +104,20 @@ def descarregar_csv():
         return send_file(REGISTRE_PATH, as_attachment=True)
     return "No hi ha cap registre disponible", 404
 
+@app.route('/pujar', methods=['POST'])
+def pujar():
+    if 'fitxer' not in request.files:
+        return "No s'ha enviat cap fitxer", 400
+
+    fitxer = request.files['fitxer']
+    if fitxer.filename == '':
+        return "Fitxer buit", 400
+
+    if fitxer:
+        fitxer.save(REGISTRE_PATH)
+        return "Fitxer pujat correctament", 200
+
+
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
