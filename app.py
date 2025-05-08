@@ -44,5 +44,9 @@ def marcar():
     guardar_status("ENTRADA" if entrada_sortida == "ENTRADA" else "SORTIDA")
     return jsonify({"ok": True})
 
+import os
+
 if __name__ == '__main__':
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
+
