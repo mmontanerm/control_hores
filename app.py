@@ -165,6 +165,64 @@ def veure_registre():
 
     return render_template('registre.html', registres=registres, data_inici=data_inici, data_fi=data_fi)
 
+@app.route('/pujar', methods=['POST'])
+def pujar():
+    if 'fitxer' not in request.files:
+        return "No s'ha enviat cap fitxer", 400
+
+    fitxer = request.files['fitxer']
+    if fitxer.filename == '':
+        return "Fitxer buit", 400
+
+    try:
+        stream = StringIO(fitxer.stream.read().decode("UTF-8"))
+        reader = csv.DictReader(stream)
+
+        registres_nous = []
+
+        for fila in reader:
+            data_hora = fila["Data i hora"]
+            tipus = fila["Tipus"]
+            of = fila["OF"]
+            lloc = fila["Lloc de feina"]
+            comentaris = fila["Comentaris"]
+
+            # Conversió segura de data
+            try:
+                data_obj = datetime.strptime(data_hora, "%Y-%m-%d %H:%M:%S")
+            except ValueError:
+                continue  # salta línies mal formades
+
+            registres_nous.append((data_obj, tipus, of, lloc, comentaris))
+
+        if not registres_nous:
+            return "No s'han trobat registres vàlids", 400
+
+        conn = connect_db()
+        cur = conn.cursor()
+
+        for reg in registres_nous:
+            cur.execute("""
+                SELECT 1 FROM registre
+                WHERE data_hora = %s AND tipus = %s AND of = %s AND lloc = %s AND comentaris = %s
+            """, reg)
+
+            if not cur.fetchone():
+                cur.execute("""
+                    INSERT INTO registre (data_hora, tipus, of, lloc, comentaris)
+                    VALUES (%s, %s, %s, %s, %s)
+                """, reg)
+
+        conn.commit()
+        cur.close()
+        conn.close()
+
+        return "Fitxer importat correctament (sense duplicats)", 200
+
+    except Exception as e:
+        return f"Error llegint el fitxer: {str(e)}", 500
+
+
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
