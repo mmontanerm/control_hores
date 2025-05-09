@@ -94,6 +94,8 @@ def marcar():
     return jsonify({"ok": True})
 
 
+from io import BytesIO
+
 @app.route('/descarregar')
 def descarregar_csv():
     conn = connect_db()
@@ -109,8 +111,17 @@ def descarregar_csv():
     for fila in registres:
         writer.writerow(fila)
 
-    output.seek(0)
-    return send_file(output, as_attachment=True, download_name="registre.csv", mimetype="text/csv")
+    # Convertim a bytes per enviar-lo correctament
+    mem = BytesIO()
+    mem.write(output.getvalue().encode('utf-8'))
+    mem.seek(0)
+
+    return send_file(
+        mem,
+        as_attachment=True,
+        download_name="registre.csv",
+        mimetype="text/csv"
+    )
 
 
 @app.route('/registre')
