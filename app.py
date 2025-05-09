@@ -1,73 +1,65 @@
 from flask import Flask, render_template, request, jsonify, send_file
 from datetime import datetime
-import csv
 import os
 import pytz
+import psycopg2
 from collections import deque
-from flask import request
+import csv
+from io import StringIO
 
 app = Flask(__name__)
-REGISTRE_PATH = 'registre.csv'
-STATUS_PATH = 'status.txt'
 
-def carregar_status():
-    if not os.path.exists(STATUS_PATH):
-        with open(STATUS_PATH, 'w') as f:
-            f.write("ENTRADA")
-    with open(STATUS_PATH, 'r') as f:
-        return f.read().strip()
+DATABASE_URL = os.environ['DATABASE_URL']
 
-def guardar_status(estat):
-    with open(STATUS_PATH, 'w') as f:
-        f.write(estat)
+
+def connect_db():
+    return psycopg2.connect(DATABASE_URL, sslmode='require')
+
 
 def carregar_ultim_estat():
-    if not os.path.exists(REGISTRE_PATH):
+    conn = connect_db()
+    cur = conn.cursor()
+    cur.execute("SELECT tipus FROM registre ORDER BY data_hora DESC LIMIT 1")
+    resultat = cur.fetchone()
+    cur.close()
+    conn.close()
+    if not resultat:
         return "ENTRADA"
-    with open(REGISTRE_PATH, 'r', encoding='utf-8') as f:
-        linies = f.readlines()
-    if len(linies) < 2:
-        return "ENTRADA"
-    ultima_linia = linies[-1].strip().split(',')
-    ultim_tipus = ultima_linia[1].strip().upper()
-    return "SORTIDA" if ultim_tipus == "ENTRADA" else "ENTRADA"
+    return "SORTIDA" if resultat[0].upper() == "ENTRADA" else "ENTRADA"
+
 
 def calcular_import_mes(mes, any_actual):
-    if not os.path.exists(REGISTRE_PATH):
-        return 0.0
-
     TARIFA_AIRA = 46.5
     TARIFA_REMOT = 37.5
 
-    with open(REGISTRE_PATH, 'r', encoding='utf-8') as f:
-        reader = csv.DictReader(f)
-        entrades = deque()
-        total_aira = 0.0
-        total_remot = 0.0
+    conn = connect_db()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT data_hora, tipus, lloc FROM registre 
+        WHERE EXTRACT(MONTH FROM data_hora) = %s AND EXTRACT(YEAR FROM data_hora) = %s
+        ORDER BY data_hora ASC
+    """, (mes, any_actual))
+    files = cur.fetchall()
+    cur.close()
+    conn.close()
 
-        for row in reader:
-            data_str = row["Data i hora"]
-            tipus = row["Tipus"]
-            lloc = row["Lloc de feina"]
+    entrades = deque()
+    total_aira = 0.0
+    total_remot = 0.0
 
-            if not data_str:
-                continue
-
-            data_hora = datetime.strptime(data_str, "%Y-%m-%d %H:%M:%S")
-            if data_hora.month != mes or data_hora.year != any_actual:
-                continue
-
-            if tipus == "ENTRADA":
-                entrades.append((data_hora, lloc.strip().upper()))
-            elif tipus == "SORTIDA" and entrades:
-                entrada_hora, lloc = entrades.popleft()
-                durada = (data_hora - entrada_hora).total_seconds() / 3600.0
-                if lloc == "AIRA":
-                    total_aira += durada * 47.5
-                elif lloc == "REMOT":
-                    total_remot += durada * 37.5
+    for data_hora, tipus, lloc in files:
+        if tipus == "ENTRADA":
+            entrades.append((data_hora, lloc.strip().upper() if lloc else ""))
+        elif tipus == "SORTIDA" and entrades:
+            entrada_hora, lloc = entrades.popleft()
+            durada = (data_hora - entrada_hora).total_seconds() / 3600.0
+            if lloc == "AIRA":
+                total_aira += durada * TARIFA_AIRA
+            elif lloc == "REMOT":
+                total_remot += durada * TARIFA_REMOT
 
     return round(total_aira + total_remot, 2)
+
 
 @app.route('/')
 def index():
@@ -77,6 +69,7 @@ def index():
     import_mes = calcular_import_mes(ara.month, ara.year)
     return render_template('index.html', status=status, import_mes=import_mes)
 
+
 @app.route('/marcar', methods=['POST'])
 def marcar():
     data = request.json
@@ -84,86 +77,85 @@ def marcar():
     timestamp = datetime.now(zona).strftime('%Y-%m-%d %H:%M:%S')
     entrada_sortida = data.get('tipus')
 
-    if entrada_sortida == "ENTRADA":
-        fila = [timestamp, "ENTRADA", data.get('of'), data.get('lloc'), data.get('comentaris')]
-    else:
-        fila = [timestamp, "SORTIDA", "", "", ""]
+    of = data.get('of') if entrada_sortida == "ENTRADA" else ""
+    lloc = data.get('lloc') if entrada_sortida == "ENTRADA" else ""
+    comentaris = data.get('comentaris') if entrada_sortida == "ENTRADA" else ""
 
-    nou_fitxer = not os.path.exists(REGISTRE_PATH)
-    with open(REGISTRE_PATH, 'a', newline='', encoding='utf-8') as f:
-        writer = csv.writer(f)
-        if nou_fitxer:
-            writer.writerow(["Data i hora", "Tipus", "OF", "Lloc de feina", "Comentaris"])
-        writer.writerow(fila)
-        f.flush()                # <-- Afegeix això
-        os.fsync(f.fileno())     # <-- I això també
+    conn = connect_db()
+    cur = conn.cursor()
+    cur.execute("""
+        INSERT INTO registre (data_hora, tipus, of, lloc, comentaris)
+        VALUES (%s, %s, %s, %s, %s)
+    """, (timestamp, entrada_sortida, of, lloc, comentaris))
+    conn.commit()
+    cur.close()
+    conn.close()
 
-
-    guardar_status("ENTRADA" if entrada_sortida == "ENTRADA" else "SORTIDA")
     return jsonify({"ok": True})
+
 
 @app.route('/descarregar')
 def descarregar_csv():
-    if os.path.exists(REGISTRE_PATH):
-        return send_file(REGISTRE_PATH, as_attachment=True)
-    return "No hi ha cap registre disponible", 404
+    conn = connect_db()
+    cur = conn.cursor()
+    cur.execute("SELECT data_hora, tipus, of, lloc, comentaris FROM registre ORDER BY data_hora ASC")
+    registres = cur.fetchall()
+    cur.close()
+    conn.close()
 
-@app.route('/pujar', methods=['POST'])
-def pujar():
-    if 'fitxer' not in request.files:
-        return "No s'ha enviat cap fitxer", 400
+    output = StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Data i hora", "Tipus", "OF", "Lloc de feina", "Comentaris"])
+    for fila in registres:
+        writer.writerow(fila)
 
-    fitxer = request.files['fitxer']
-    if fitxer.filename == '':
-        return "Fitxer buit", 400
+    output.seek(0)
+    return send_file(output, as_attachment=True, download_name="registre.csv", mimetype="text/csv")
 
-    if fitxer:
-        fitxer.save(REGISTRE_PATH)
-        return "Fitxer pujat correctament", 200
-
-from flask import request
 
 @app.route('/registre')
 def veure_registre():
-    if not os.path.exists(REGISTRE_PATH):
-        return render_template('registre.html', registres=[], data_inici="", data_fi="")
-
     data_inici = request.args.get("data_inici", "")
     data_fi = request.args.get("data_fi", "")
 
-    with open(REGISTRE_PATH, 'r', encoding='utf-8') as f:
-        reader = csv.DictReader(f)
-        linies = list(reader)
+    conn = connect_db()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT data_hora, tipus, of, lloc, comentaris
+        FROM registre
+        ORDER BY data_hora ASC
+    """)
+    files = cur.fetchall()
+    cur.close()
+    conn.close()
 
     registres = []
     entrada = None
 
-    for fila in linies:
-        if fila["Tipus"] == "ENTRADA":
+    for fila in files:
+        data_hora, tipus, of, lloc, comentaris = fila
+        if tipus == "ENTRADA":
             entrada = {
-                "data": fila["Data i hora"],
-                "of": fila["OF"],
-                "lloc": fila["Lloc de feina"],
-                "comentaris": fila["Comentaris"]
+                "data": data_hora,
+                "of": of,
+                "lloc": lloc,
+                "comentaris": comentaris
             }
-        elif fila["Tipus"] == "SORTIDA" and entrada:
-            data_entrada = datetime.strptime(entrada["data"], "%Y-%m-%d %H:%M:%S")
-            data_sortida = datetime.strptime(fila["Data i hora"], "%Y-%m-%d %H:%M:%S")
-            durada = round((data_sortida - data_entrada).total_seconds() / 3600.0, 2)
-
-            # Filtrat per dates si cal
+        elif tipus == "SORTIDA" and entrada:
             if data_inici:
                 dt_ini = datetime.strptime(data_inici, "%Y-%m-%d")
-                if data_sortida < dt_ini:
+                if data_hora < dt_ini:
                     continue
             if data_fi:
                 dt_fi = datetime.strptime(data_fi, "%Y-%m-%d")
-                if data_sortida > dt_fi:
+                if data_hora > dt_fi:
                     continue
 
+            durada = round((data_hora - entrada["data"]).total_seconds() / 3600.0, 2)
+
             registres.append({
-                "data_inici": entrada["data"],
-                "data_final": fila["Data i hora"],
+                "data_inici": entrada["data"].strftime('%Y-%m-%d %H:%M:%S'),
+                "data_final": data_hora.strftime('%Y-%m-%d %H:%M:%S'),
                 "of": entrada["of"],
                 "lloc": entrada["lloc"],
                 "comentaris": entrada["comentaris"],
@@ -177,4 +169,5 @@ def veure_registre():
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
+
 
